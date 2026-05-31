@@ -1,46 +1,25 @@
 import http from 'http';
 
 const manifest = {
-    id: "community.moviescraper",
-    version: "1.0.2",
-    name: "HDHub + Vegamovies + KatMovieHD",
-    description: "Scrapes from Vegamovies, HDHub4u & KatMovieHD",
+    id: "community.hubscraper",
+    version: "1.0.3",
+    name: "Vega + HDHub + Kat Scraper",
+    description: "Basic scraper for Vegamovies, HDHub4u & KatMovieHD",
     resources: ["stream"],
     types: ["movie", "series"],
     idPrefixes: ["tt"]
 };
 
-// ================== PLACEHOLDERS (we'll improve later) ==================
-async function fetchVegamovies(title) {
+async function searchSite(siteName, title) {
     try {
+        console.log(`Searching ${siteName} for: ${title}`);
+        
+        // TODO: Real scraping logic will go here later
+        // For now returning mock working streams
         return {
-            name: "🌐 Vegamovies",
-            title: "720p/1080p - Vegamovies",
+            name: `🔥 ${siteName}`,
+            title: `1080p - Found on ${siteName}`,
             url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
-        };
-    } catch (e) {
-        return null;
-    }
-}
-
-async function fetchHDHub4u(title) {
-    try {
-        return {
-            name: "🔥 HDHub4u",
-            title: "1080p - HDHub4u",
-            url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"
-        };
-    } catch (e) {
-        return null;
-    }
-}
-
-async function fetchKatMovieHD(title) {
-    try {
-        return {
-            name: "⚡ KatMovieHD",
-            title: "Dual Audio 1080p",
-            url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4"
         };
     } catch (e) {
         return null;
@@ -60,23 +39,19 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (url.pathname.startsWith('/stream/')) {
-        const parts = url.pathname.split('/');
-        const imdbId = parts[parts.length - 1].replace('.json', '');
-
-        // Try to get movie name from query if available
-        const title = url.searchParams.get('title') || imdbId;
-
         const streams = [];
+        const titleParam = url.searchParams.get('title') || "Unknown Movie";
+        const cleanTitle = titleParam.replace(/[^a-zA-Z0-9 ]/g, '');
 
-        const [v1, v2, v3] = await Promise.all([
-            fetchVegamovies(title),
-            fetchHDHub4u(title),
-            fetchKatMovieHD(title)
+        const [vega, hdhub, kat] = await Promise.all([
+            searchSite("Vegamovies", cleanTitle),
+            searchSite("HDHub4u", cleanTitle),
+            searchSite("KatMovieHD", cleanTitle)
         ]);
 
-        if (v1) streams.push(v1);
-        if (v2) streams.push(v2);
-        if (v3) streams.push(v3);
+        if (vega) streams.push(vega);
+        if (hdhub) streams.push(hdhub);
+        if (kat) streams.push(kat);
 
         res.writeHead(200);
         return res.end(JSON.stringify({ streams }));
@@ -88,6 +63,6 @@ const server = http.createServer(async (req, res) => {
 
 const port = process.env.PORT || 3000;
 server.listen(port, () => {
-    console.log(`🚀 Multi-Piracy Scraper running on port ${port}`);
-    console.log(`Manifest → http://localhost:${port}/manifest.json`);
+    console.log(`🚀 Hub Scraper running → http://localhost:${port}`);
+    console.log(`Add this manifest in Stremio: http://YOUR-IP:${port}/manifest.json`);
 });
