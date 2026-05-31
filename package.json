@@ -1,6 +1,7 @@
 {
   "name": "moviebox-mobile-addon",
   "version": "1.0.0",
+  "type": "module",
   "main": "server.js",
   "dependencies": {
     "moviebox-js-sdk": "^1.0.0"
