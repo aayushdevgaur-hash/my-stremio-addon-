@@ -1,6 +1,7 @@
-const http = require('http');
+import http from 'http';
+import { MovieboxSession, search, getMovieStreamUrl } from 'moviebox-js-sdk';
 
-// 1. Define your Stremio Addon Manifest details
+// 1. Define your Stremio Addon Manifest
 const manifest = {
     id: "community.mobilemoviebox",
     version: "1.0.0",
@@ -11,30 +12,28 @@ const manifest = {
     idPrefixes: ["tt"]
 };
 
-// 2. Create a clean, native HTTP cloud server
+// 2. Create a native cloud server
 const server = http.createServer(async (req, res) => {
-    // Inject mandatory CORS headers so Stremio app is allowed to read our stream lists
+    // Mandatory headers so the Stremio app can read our data
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', '*');
     res.setHeader('Content-Type', 'application/json');
 
-    // Route A: Stremio requests the manifest details
+    // Route A: Stremio checks the addon's manifest
     if (req.url === '/manifest.json') {
         res.writeHead(200);
         return res.end(JSON.stringify(manifest));
     }
 
-    // Route B: Stremio requests video streams for a specific movie ID
+    // Route B: Stremio requests video streams for a movie ID
     if (req.url.startsWith('/stream/movie/')) {
         const parts = req.url.split('/');
-        const fileName = parts[parts.length - 1]; // Extract "tt12345.json"
-        const imdbId = fileName.replace('.json', ''); // Strip to "tt12345"
+        const fileName = parts[parts.length - 1]; // e.g., "tt12345.json"
+        const imdbId = fileName.replace('.json', ''); // e.g., "tt12345"
 
         console.log(`Incoming request for IMDb ID: ${imdbId}`);
 
         try {
-            // Load the Moviebox scraper module dynamically
-            const { MovieboxSession, search, getMovieStreamUrl } = await import('moviebox-js-sdk');
             const session = new MovieboxSession({ host: 'moviebox.ph' });
 
             // Fetch movie title via Stremio's Cinemeta service
@@ -49,7 +48,7 @@ const server = http.createServer(async (req, res) => {
             const title = metaData.meta.name;
             console.log(`Searching MovieBox index for: "${title}"`);
 
-            // Execute movie search
+            // Execute movie search on MovieBox
             const searchResults = await search(session, { query: title });
             const matchedItem = searchResults.results?.[0];
 
@@ -58,7 +57,7 @@ const server = http.createServer(async (req, res) => {
                 return res.end(JSON.stringify({ streams: [] }));
             }
 
-            // Extract the direct media streaming link
+            // Extract the direct streaming link
             const streamInfo = await getMovieStreamUrl(session, { 
                 detailPath: matchedItem.detailPath, 
                 quality: 'best' 
@@ -77,19 +76,19 @@ const server = http.createServer(async (req, res) => {
             return res.end(JSON.stringify({ streams }));
 
         } catch (error) {
-            console.error("Internal Server Scraper Error:", error.message);
+            console.error("Internal Scraper Error:", error.message);
             res.writeHead(200);
             return res.end(JSON.stringify({ streams: [] }));
         }
     }
 
-    // Fallback for any other root paths
+    // Fallback response
     res.writeHead(404);
     res.end(JSON.stringify({ error: "Not Found" }));
 });
 
-// 3. Bind to Render's cloud environment port
+// 3. Start the server engine on Render's port
 const port = process.env.PORT || 3000;
 server.listen(port, () => {
-    console.log(`Native Cloud Server successfully running on port ${port}`);
+    console.log(`Native ESM Server successfully running on port ${port}`);
 });
