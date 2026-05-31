@@ -18,7 +18,7 @@ async function searchSite(siteName, title) {
         // For now returning mock working streams
         return {
             name: `🔥 ${siteName}`,
-            title: `1080p - Found on ${siteName}`,
+            title: `1080p - Found on ${https://new1.katmoviehd.cymru/}`,
             url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
         };
     } catch (e) {
