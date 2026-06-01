@@ -1,127 +1,51 @@
-import http from 'http';
+import { load } from 'cheerio';
 
-// 1. Define your Stremio Addon Manifest
-const manifest = {
-    id: "community.namesearchaddon",
-    version: "1.0.0",
-    name: "Name-Based Open Source Addon",
-    description: "Converts IDs to movie titles and searches public catalogs concurrently.",
-    resources: ["stream"],
-    types: ["movie"],
-    idPrefixes: ["tt"]
-};
-
-// Function representing an Open Public Domain Archive searching by title name
-async function fetchPublicArchiveByTitle(movieTitle) {
+async function scrapeWebsite() {
     try {
-        console.log(`[Archive] Initiating search query for: "${movieTitle}"`);
+        // REPLACE THIS URL with the public, static website you want to analyze
+        const targetUrl = "https://new1.katmoviehd.cymru/"; 
         
-        // Normalize title string for robust pattern matching
-        const normalizedTitle = movieTitle.toLowerCase().trim();
+        console.log(`Fetching raw HTML from: ${targetUrl}...`);
         
-        // Demonstration fallback: matches public domain movie keywords
-        if (normalizedTitle.includes("bunny") || normalizedTitle.includes("big buck")) {
-            return {
-                name: "🌐 Open Archive A",
-                title: `${movieTitle}\n1080p Public Domain Stream`,
-                url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
-            };
-        }
-        
-        return null;
-    } catch (e) {
-        console.log("[Archive] Search routine failed:", e.message);
-        return null;
-    }
-}
-
-// Function representing a secondary Open Video Index searching by title name
-async function fetchOpenIndexByTitle(movieTitle) {
-    try {
-        console.log(`[Open Index] Initiating search query for: "${movieTitle}"`);
-        
-        const normalizedTitle = movieTitle.toLowerCase().trim();
-        
-        // Demonstration fallback: matches open-source movie keywords
-        if (normalizedTitle.includes("dream") || normalizedTitle.includes("elephant")) {
-            return {
-                name: "🌐 Open Index B",
-                title: `${movieTitle}\n720p Open Media Stream`,
-                url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"
-            };
-        }
-        
-        return null;
-    } catch (e) {
-        console.log("[Open Index] Search routine failed:", e.message);
-        return null;
-    }
-}
-
-// 2. Create the native HTTP server pipeline
-const server = http.createServer(async (req, res) => {
-    // Inject mandatory headers for Stremio cross-origin capability
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', '*');
-    res.setHeader('Content-Type', 'application/json');
-
-    const cleanUrl = req.url.split('?')[0];
-
-    // Route A: Manifest request route
-    if (cleanUrl === '/manifest.json') {
-        res.writeHead(200);
-        return res.end(JSON.stringify(manifest));
-    }
-
-    // Route B: Stream resolution route
-    if (cleanUrl.startsWith('/stream/movie/')) {
-        const parts = cleanUrl.split('/');
-        const fileName = parts[parts.length - 1]; // e.g., "tt12345.json"
-        const imdbId = fileName.replace('.json', ''); // e.g., "tt12345"
-
-        console.log(`🎬 Request received for IMDb ID: ${imdbId}`);
-
-        try {
-            // STEP 1: Convert the IMDb ID into a string movie title using Cinemeta
-            const metaRes = await fetch(`https://v3-cinemeta.strem.io/meta/movie/${imdbId}.json`);
-            const metaData = await metaRes.json();
-            
-            if (!metaData.meta || !metaData.meta.name) {
-                console.log(`❌ Title metadata resolution failed for ID: ${imdbId}`);
-                res.writeHead(200);
-                return res.end(JSON.stringify({ streams: [] }));
+        // 1. Send the HTTP request to the site
+        const response = await fetch(targetUrl, {
+            headers: {
+                // Tells the server you are a regular web browser
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
-
-            const movieTitle = metaData.meta.name;
-            console.log(`✅ ID successfully resolved to Title: "${movieTitle}"`);
-
-            const streams = [];
-
-            // STEP 2: Pass the resolved string title into name-based public search modules concurrently
-            const [resultA, resultB] = await Promise.all([
-                fetchPublicArchiveByTitle(movieTitle),
-                fetchOpenIndexByTitle(movieTitle)
-            ]);
-
-            if (resultA) streams.push(resultA);
-            if (resultB) streams.push(resultB);
-
-            res.writeHead(200);
-            return res.end(JSON.stringify({ streams }));
-
-        } catch (error) {
-            console.error("❌ Internal Streaming Engine Error:", error.message);
-            res.writeHead(200);
-            return res.end(JSON.stringify({ streams: [] }));
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP Error! Status: ${response.status}`);
         }
+        
+        const html = await response.text();
+        
+        // 2. Load the HTML string into Cheerio for parsing
+        const $ = load(html);
+        
+        // 3. Extract data using CSS Selectors
+        // (Modify these selectors based on your target website's actual HTML elements)
+        const pageTitle = $('h1').text().trim();
+        const paragraphText = $('p').text().trim();
+        
+        console.log('\n--- Extraction Results ---');
+        console.log(`Extracted Heading: "${pageTitle}"`);
+        console.log(`Extracted Paragraph: "${paragraphText}"`);
+        
+        // Example: How to loop through a list of items (like a grid of cards or links)
+        /*
+        $('.movie-card').each((index, element) => {
+            const title = $(element).find('.movie-title').text().trim();
+            const link = $(element).find('a').attr('href');
+            console.log(`Item #${index + 1}: ${title} -> ${link}`);
+        });
+        */
+
+    } catch (error) {
+        console.error("Scraper encountered an error:", error.message);
     }
+}
 
-    res.writeHead(404);
-    res.end(JSON.stringify({ error: "Not Found" }));
-});
-
-// 3. Initialize server binding
-const port = process.env.PORT || 3000;
-server.listen(port, () => {
-    console.log(`Name-based multi-source server running on port ${port}`);
-});
+// Execute the function
+scrapeWebsite();
