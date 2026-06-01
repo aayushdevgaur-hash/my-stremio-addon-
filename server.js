@@ -1,51 +1,31 @@
-import { load } from 'cheerio';
-
-async function scrapeWebsite() {
+async function fetchCustomSourceA(movieTitle, imdbId) {
     try {
-        // REPLACE THIS URL with the public, static website you want to analyze
-        const targetUrl = "https://new1.katmoviehd.cymru/"; 
+        console.log(`[Source A] Scanning index for: "${movieTitle}"`);
         
-        console.log(`Fetching raw HTML from: ${targetUrl}...`);
+        // 1. PLACE YOUR TARGET WEBSITE OR API URL HERE
+        const targetUrl = `https://new1.katmoviehd.cymru/?s=${encodeURIComponent(movieTitle)}`;
         
-        // 1. Send the HTTP request to the site
-        const response = await fetch(targetUrl, {
-            headers: {
-                // Tells the server you are a regular web browser
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
+        // 2. FETCH THE DATA FROM THAT SITE
+        const response = await fetch(targetUrl, { 
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } 
         });
         
-        if (!response.ok) {
-            throw new Error(`HTTP Error! Status: ${response.status}`);
+        // 3. CHOOSE HOW TO READ THE DATA
+        // Use .json() if the site returns clean data objects, or .text() if it returns raw HTML web code
+        const data = await response.json(); 
+        
+        // 4. MAP THE BLANK LINK TO STREMIO
+        if (data && data.videoUrl) {
+            return {
+                name: "🌐 Live Source A",
+                title: `${movieTitle}\nStream Found`,
+                url: data.videoUrl // Make sure this property matches the site's data path
+            };
         }
         
-        const html = await response.text();
-        
-        // 2. Load the HTML string into Cheerio for parsing
-        const $ = load(html);
-        
-        // 3. Extract data using CSS Selectors
-        // (Modify these selectors based on your target website's actual HTML elements)
-        const pageTitle = $('h1').text().trim();
-        const paragraphText = $('p').text().trim();
-        
-        console.log('\n--- Extraction Results ---');
-        console.log(`Extracted Heading: "${pageTitle}"`);
-        console.log(`Extracted Paragraph: "${paragraphText}"`);
-        
-        // Example: How to loop through a list of items (like a grid of cards or links)
-        /*
-        $('.movie-card').each((index, element) => {
-            const title = $(element).find('.movie-title').text().trim();
-            const link = $(element).find('a').attr('href');
-            console.log(`Item #${index + 1}: ${title} -> ${link}`);
-        });
-        */
-
-    } catch (error) {
-        console.error("Scraper encountered an error:", error.message);
+        return null;
+    } catch (e) {
+        console.log("[Source A] Execution error encountered:", e.message);
+        return null; 
     }
 }
-
-// Execute the function
-scrapeWebsite();
